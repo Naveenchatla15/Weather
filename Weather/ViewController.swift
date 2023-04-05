@@ -10,6 +10,7 @@ import CoreLocation
 import MapKit
 import Kingfisher
 
+@available(iOS 14.0, *)
 class ViewController: UIViewController, CLLocationManagerDelegate {
     let weatherimagAPI = "https://openweathermap.org/img/wn/01d@2x.png"
     var locationManager = CLLocationManager()
@@ -58,6 +59,38 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         
     }
     
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        
+        switch manager.authorizationStatus {
+        case .authorizedAlways , .authorizedWhenInUse:
+            break
+        case .notDetermined , .denied , .restricted:
+            print("Not accecable")
+            break
+        default:
+            break
+        }
+        
+        switch manager.accuracyAuthorization {
+        case .fullAccuracy:
+            break
+        case .reducedAccuracy:
+            break
+        default:
+            break
+        }
+    }
+    
+    private func locationManager(manager: CLLocationManager, didChangeAuthorizationStatus status: CLAuthorizationStatus) {
+        if (status == CLAuthorizationStatus.denied) {
+            // The user denied authorization
+            print("denied")
+        } else if (status == CLAuthorizationStatus.authorizedAlways) {
+            // The user accepted authorization
+            print("authorizedAlways")
+        }
+    }
+    
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         
         location = locations.last!
@@ -103,8 +136,30 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     }
     
     @IBAction func locationBtnAction(_ sender: Any) {
-        locationManager.startUpdatingLocation()
-        getAddressFromLatLon(long: longitude, lat: latitude)
+        
+        DispatchQueue.main.async {
+            if CLLocationManager.locationServicesEnabled() {
+                switch CLLocationManager.authorizationStatus() {
+                case .notDetermined, .restricted, .denied:
+                    print("No access")
+                    if let BUNDLE_IDENTIFIER = Bundle.main.bundleIdentifier,
+                       let url = URL(string: "\(UIApplication.openSettingsURLString)&path=LOCATION/\(BUNDLE_IDENTIFIER)") {
+                        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                    }
+ 
+                case .authorizedAlways, .authorizedWhenInUse:
+                    print("Access")
+                    self.locationManager.startUpdatingLocation()
+                    self.getAddressFromLatLon(long: self.longitude, lat: self.latitude)
+                @unknown default:
+                    break
+                }
+            } else {
+                print("Location services are not enabled")
+            }
+        }
+        
+        
     }
     
     func getAddressFromLatLon(long : Double, lat: Double) {
@@ -136,16 +191,13 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
                     print(pm.timeZone ?? "")
                     self.cityNameLbl.text = pm.locality!  + ", " + pm.isoCountryCode!
                     self.dateLbl.text = Date.getCurrentDate(timeZone: pm.timeZone!)
+                    self.getRequest(params: ["q": pm.locality!, "appid" : access_Tocken])
                     if let first = pm.country!.components(separatedBy: " ").last {
-                        
                         print(first)
-                        self.getRequest(params: ["q": pm.locality!, "appid" : access_Tocken])
                     }
-                    
                 }
             }
         })
-        
     }
     
     //MARK:- API CALL
@@ -191,9 +243,16 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
                         print(myStruct.coord!.lon! as Any)
                         print(myStruct.weather![0].main! as Any)
                         
+                        let location2:CLLocationCoordinate2D = CLLocationCoordinate2DMake(myStruct.coord!.lat!, myStruct.coord!.lon!)
+                        
+                        let region2 = MKCoordinateRegion(center: location2, span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1))
+                        self.cityMapView.setRegion(region2, animated: true)
+                        let myAn2 = MyAnnotation(title: "", coordinate: location2, subtitle: "")
+                        self.cityMapView.addAnnotation(myAn2)
+                        
                         let countryCode = myStruct.sys?.country
                         DispatchQueue.main.async(execute: {
-//                            self.dateLbl.text = self.getTimeWithLocale(with: myStruct.name!)
+                            //                            self.dateLbl.text = self.getTimeWithLocale(with: myStruct.name!)
                             self.cityNameTF.text = ""
                             self.cityNameLbl.text = myStruct.name! + ", " + (countryCode ?? "")
                             self.feelsLikeLbl.text = myStruct.weather![0].main! + ", " + myStruct.weather![0].description!
@@ -234,15 +293,15 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
     
     
     func getTimeWithLocale(with timeZone: String) -> String {
-//        let dateFormatter = DateFormatter()
-//        dateFormatter.dateStyle = .none
-//        dateFormatter.timeStyle = .short
-//        dateFormatter.timeZone = TimeZone(identifier: timeZone)
-//        dateFormatter.locale = .current
-//
-//        let time = dateFormatter.string(from: Date()).lowercased().replacingOccurrences(of: " ", with: "")
-//
-//        return time
+        //        let dateFormatter = DateFormatter()
+        //        dateFormatter.dateStyle = .none
+        //        dateFormatter.timeStyle = .short
+        //        dateFormatter.timeZone = TimeZone(identifier: timeZone)
+        //        dateFormatter.locale = .current
+        //
+        //        let time = dateFormatter.string(from: Date()).lowercased().replacingOccurrences(of: " ", with: "")
+        //
+        //        return time
         
         let currentDate = Date()
         let format = DateFormatter()
@@ -251,7 +310,7 @@ class ViewController: UIViewController, CLLocationManagerDelegate {
         let dateString = format.string(from: currentDate)
         
         return dateString
-
+        
     }
 }
 

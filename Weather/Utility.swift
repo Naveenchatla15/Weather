@@ -7,6 +7,7 @@
 
 import Foundation
 import UIKit
+import CoreLocation
 
 
 
@@ -73,5 +74,26 @@ extension Date {
      return dateString
 
     }  
+    
+}
+
+
+@available(iOS 14.0, *)
+extension CLLocationManager {
+    
+    func checkLocationPermission() {
+        
+        if self.authorizationStatus != .authorizedWhenInUse && self.authorizationStatus != .authorizedAlways && self.authorizationStatus != .denied{
+            
+            self.requestAlwaysAuthorization()
+            
+        }
+        else
+        {
+            print("kjhjkhkjhkj")
+            self.requestAlwaysAuthorization()
+        }
+        
+    }
     
 }
